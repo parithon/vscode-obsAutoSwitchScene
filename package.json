@@ -1,0 +1,62 @@
+{
+	"name": "vscode-obs-websockets-secretsswitchscene",
+	"displayName": "vscode-obs-websockets-secretsswitchscene",
+	"description": "",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.30.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"*"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "extension.helloWorld",
+				"title": "Hello World"
+			}
+		],
+		"configuration": {
+			"title": "OBS Secrets Switch Scene",
+			"properties": {
+				"obs.secretsSwitchScene.fileNames": {
+					"type": "array",
+					"default": [],
+					"description": "A list of filenames that contain secrets."
+				},
+				"obs.secretsSwitchScene.scene": {
+					"type": "string",
+					"default": "Scene1",
+					"description": "The scene to automatically switch to if a file containing secrets is opened."
+				},
+				"obs.secretsSwitchScene.autoSwitchBack": {
+					"type": "boolean",
+					"default": true,
+					"description": "Automatically switch back to the previous scene after you close the file containing secrets."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"test": "npm run compile && node ./node_modules/vscode/bin/test"
+	},
+	"devDependencies": {
+		"@types/mocha": "^2.2.42",
+		"@types/node": "^8.10.25",
+		"obs-websocket-js-types": "^4.4.0",
+		"tslint": "^5.8.0",
+		"typescript": "^3.1.4",
+		"vscode": "^1.1.25"
+	},
+	"dependencies": {
+		"obs-websocket-js": "^1.2.0"
+	}
+}
