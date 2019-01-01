@@ -18,6 +18,8 @@ let autoSwitchBack: boolean = true;
 let retryCount: number = 0;
 let isRetrying: boolean = false;
 let obsOutputChannel: vscode.OutputChannel;
+let obsSocketPassword: string | undefined;
+let authFailure: boolean;
 
 function initializeSettings()
 {
@@ -38,9 +40,15 @@ function initializeSettings()
 		secretsScene = settings.get<string>("scene") as string;
 	}
 	
-	if (settings.has('autoSwitchBack'))
-	{
+	if (settings.has('autoSwitchBack')) {
 		autoSwitchBack = settings.get<boolean>("autoSwitchBack") as boolean;
+	}
+
+	if (settings.has('password')) { 
+		obsSocketPassword = settings.get<string>('password');
+		if (obsSocketPassword === null) {
+			obsSocketPassword = undefined;
+		}
 	}
 }
 
@@ -60,10 +68,15 @@ function initializeObs() {
 			 });
 	});
 
+	obs.addListener("AuthenticationFailure", () =>{
+		authFailure = true;
+		obsOutputChannel.appendLine(`Failed to authenticate with the OBS Websockets server.`);
+	});
+
 	obs.addListener("ConnectionClosed", () => {
 		obsConnected = false;
 		obsOutputChannel.appendLine("Disconnected from OBS-Studio");
-		if (isRetrying) { return; }
+		if (isRetrying || authFailure) { return; }
 		isRetrying = true;
 		tryConnect();
 	});
@@ -115,13 +128,14 @@ function gotoOriginalScene() {
 
 function tryConnect() {
 	obsConnected = false;
-	if (retryCount++ < 5) {
+	if (retryCount++ < 5 && !authFailure) {
 		obsOutputChannel.appendLine(`Trying to connect to OBS @ ${obsSocketUrl}...`);
-		obs.connect({ address: obsSocketUrl }, (err?: Error) => {
-			if (!err) { return; }
+		obs.connect({ address: obsSocketUrl, password: obsSocketPassword }, (err?: any) => {
+			if (!err || err.messageId === "2") { return; }
 			setTimeout(tryConnect, 5000);
 			obsOutputChannel.appendLine(`Could not establish a connection with the OBS Websocket server @ ${obsSocketUrl}.`);
-		});
+			console.error(`[Failed connection] ${err.message}`);
+		}).catch(reason => { console.error(reason); });
 	} else {
 		obsOutputChannel.appendLine("Exhausted all attempts to connect to OBS-Studio.");
 	}
@@ -171,6 +185,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let startConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.startConnection", () => {
 		retryCount = 0;
+		authFailure = false;
 		tryConnect();
 	});
 

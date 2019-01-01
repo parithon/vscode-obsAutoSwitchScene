@@ -57,6 +57,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Automatically switch back to the previous scene after you close the file containing secrets."
+				},
+				"obs.secretsSwitchScene.password": {
+					"type": "string",
+					"default": null,
+					"description": "The password to use while connecting to the OBS Websocket server."
 				}
 			}
 		}

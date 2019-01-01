@@ -28,6 +28,7 @@ This extension contributes the following settings:
 * `obs.secretsSwitchScene.fileNames`: A list of filenames that contain secrets.
 * `obs.secretsSwitchScene.scene`: The scene to automatically switch to if a file containing secrets is opened.
 * `obs.secretsSwitchScene.autoSwitchBack`: Automatically switch back to the previous scene after you close the file containing secrets.
+* `obs.secretsSwitchScene.password`: The password to use while connecting to the OBS Websocket server.
 
 ## Known issues
 
