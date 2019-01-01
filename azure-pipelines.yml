@@ -43,7 +43,7 @@ jobs:
     inputs:
       versionSpec: '8.x'
     displayName: 'Install Node.js 8.x'
-  - scripts: |
+  - script: |
       npm install
       npm run compile
     displayName: 'npm install and compile'
