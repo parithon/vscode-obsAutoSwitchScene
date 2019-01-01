@@ -16,9 +16,13 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "extension.helloWorld",
-				"title": "Hello World"
-			}
+				"command": "obs.secretsSwitchScene.startConnection",
+				"title": "Start connection to OBS-Studio"
+			},
+			{
+				"command": "obs.secretsSwitchScene.stopConnection",
+				"title": "Stop connection with OBS-Studio"
+			}			
 		],
 		"configuration": {
 			"title": "OBS Secrets Switch Scene",

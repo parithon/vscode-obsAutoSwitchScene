@@ -15,6 +15,9 @@ let originalScene: string;
 let originalTransitionDuration: number;
 let sceneSwitched: boolean = false;
 let autoSwitchBack: boolean = true;
+let retryCount: number = 0;
+let isRetrying: boolean = false;
+let obsOutputChannel: vscode.OutputChannel;
 
 function initializeSettings()
 {
@@ -41,14 +44,39 @@ function initializeSettings()
 	}
 }
 
+function initializeObs() {
+
+	obsOutputChannel = vscode.window.createOutputChannel('obs-studio');
+
+	obs.addListener("ConnectionOpened", () => {
+		obsConnected = true;
+		isRetrying = false;
+		retryCount = 0;
+		obsOutputChannel.appendLine(`Connected to OBS-Studio!`);
+		obs.send("GetVersion")
+			 .then(result => {
+					obsOutputChannel.appendLine(`OBS Studio Version: ${result.obsStudioVersion}`);
+					obsOutputChannel.appendLine(`OBS Websockets Version" ${result.obsWebsocketVersion}`);
+			 });
+	});
+
+	obs.addListener("ConnectionClosed", () => {
+		obsConnected = false;
+		obsOutputChannel.appendLine("Disconnected from OBS-Studio");
+		if (isRetrying) { return; }
+		isRetrying = true;
+		tryConnect();
+	});
+}
+
 function gotoSecretsScene()
 {
 	// Get the current scene
 	obs.send("GetCurrentScene")
 	.then(result => {
 		originalScene = result.name;
-		console.log(`Current Scene: ${result.name}`);
-		console.log(`Switching to ${secretsScene}`);
+		obsOutputChannel.appendLine(`Current Scene: ${result.name}`);
+		obsOutputChannel.appendLine(`Switching to ${secretsScene}`);
 	});
 
 	// Get the transition duration
@@ -66,7 +94,10 @@ function gotoSecretsScene()
 		sceneSwitched = true;
 		vscode.window.showInformationMessage(`You opened a file which contains Secrets! OBS scene switched to '${secretsScene}'.`);
 	})
-	.catch(result => console.error(`An error occured while switching scenes: ${result.error}.`));
+	.catch(result => {
+		obsOutputChannel.appendLine(`An error occured while switching scenes: ${result.error}.`);
+		vscode.window.showErrorMessage(`An error occured while switching scenes.`);
+	});
 }
 
 function gotoOriginalScene() {
@@ -78,29 +109,33 @@ function gotoOriginalScene() {
 		obs.send("SetCurrentScene", {
 			"scene-name": originalScene,
 			"sceneName": originalScene
-		}).then(() => console.log(`Switched scene back to the original scene '${originalScene}'.`));
+		}).then(() => obsOutputChannel.appendLine(`Switched scene back to the original scene '${originalScene}'.`));
+	}
+}
+
+function tryConnect() {
+	obsConnected = false;
+	if (retryCount++ < 5) {
+		obsOutputChannel.appendLine(`Trying to connect to OBS @ ${obsSocketUrl}...`);
+		obs.connect({ address: obsSocketUrl }, (err?: Error) => {
+			if (!err) { return; }
+			setTimeout(tryConnect, 5000);
+			obsOutputChannel.appendLine(`Could not establish a connection with the OBS Websocket server @ ${obsSocketUrl}.`);
+		});
+	} else {
+		obsOutputChannel.appendLine("Exhausted all attempts to connect to OBS-Studio.");
 	}
 }
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	
 	initializeSettings();
 
-	obs.connect({ address: obsSocketUrl }, (err?: Error) => {
-		if (!err) { return; }
-		obsConnected = false;
-		console.error(`An unhandled error occured while establishing a connection to the OBS Websocket @ ${obsSocketUrl}: ${err.message}`);
-	})
-	.then(() => {
-		obsConnected = true;
-		console.log(`Connection established!`);
-		obs.send("GetVersion")
-			 .then(result => {
-				 console.log(`OBS Studio Version: ${result.obsStudioVersion}`);
-				 console.log(`OBS Websockets Version" ${result.obsWebsocketVersion}`);
-			 });
-	});
+	initializeObs();
+
+	tryConnect();
 
 	// Check editor.document.fileName against known secrets fileNames and
 	// also against user-specified secrets fileNames and switch
@@ -134,11 +169,26 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	let startConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.startConnection", () => {
+		retryCount = 0;
+		tryConnect();
+	});
+
+	let stopConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.stopConnection", () => {
+		if (!obsConnected) { return; }
+		obsOutputChannel.appendLine("Disconnecting from OBS-Studio");
+		isRetrying = true;
+		obs.disconnect();
+	});
+
 	context.subscriptions.push(documentOpenedEvent);
 	context.subscriptions.push(workspaceSettingsChangedEvent);
+	context.subscriptions.push(startConnectionCommand);
+	context.subscriptions.push(stopConnectionCommand);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+	obs.removeAllListeners();
 	obs.disconnect();
 }
