@@ -7,6 +7,7 @@ const vscode = require("vscode");
 const path = require("path");
 const OBSWebSocket = require("obs-websocket-js");
 const obs = new OBSWebSocket();
+let obsSocketUrl;
 let secretsFileNames = new Array();
 let secretsScene;
 let obsConnected = false;
@@ -16,6 +17,9 @@ let sceneSwitched = false;
 let autoSwitchBack = true;
 function initializeSettings() {
     let settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
+    if (settings.has('socketsUrl')) {
+        obsSocketUrl = settings.get('socketsUrl');
+    }
     if (settings.has('fileNames')) {
         let fileNames = settings.get('fileNames');
         if (fileNames !== undefined) {
@@ -66,12 +70,12 @@ function gotoOriginalScene() {
 // your extension is activated the very first time the command is executed
 function activate(context) {
     initializeSettings();
-    obs.connect({ address: "localhost:4444" }, (err) => {
+    obs.connect({ address: obsSocketUrl }, (err) => {
         if (!err) {
             return;
         }
         obsConnected = false;
-        console.error(`An unhandled error occured while establishing a connection to the OBS Websocket: ${err.message}`);
+        console.error(`An unhandled error occured while establishing a connection to the OBS Websocket @ ${obsSocketUrl}: ${err.message}`);
     })
         .then(() => {
         obsConnected = true;
