@@ -36,6 +36,10 @@ No issues are known at this time.
 
 ## Release Notes
 
+### 1.2.0
+
+Added a status bar indicator to VSCode
+
 ### 1.1.0
 
 Added the ability for the extension to manage the connection state and try to reconnect up to 5 times.
