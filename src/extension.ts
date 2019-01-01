@@ -18,6 +18,9 @@ let autoSwitchBack: boolean = true;
 let retryCount: number = 0;
 let isRetrying: boolean = false;
 let obsOutputChannel: vscode.OutputChannel;
+let obsSocketPassword: string | undefined;
+let authFailure: boolean;
+let myStatusBarItem: vscode.StatusBarItem;
 
 function initializeSettings()
 {
@@ -38,9 +41,15 @@ function initializeSettings()
 		secretsScene = settings.get<string>("scene") as string;
 	}
 	
-	if (settings.has('autoSwitchBack'))
-	{
+	if (settings.has('autoSwitchBack')) {
 		autoSwitchBack = settings.get<boolean>("autoSwitchBack") as boolean;
+	}
+
+	if (settings.has('password')) { 
+		obsSocketPassword = settings.get<string>('password');
+		if (obsSocketPassword === null) {
+			obsSocketPassword = undefined;
+		}
 	}
 }
 
@@ -58,12 +67,19 @@ function initializeObs() {
 					obsOutputChannel.appendLine(`OBS Studio Version: ${result.obsStudioVersion}`);
 					obsOutputChannel.appendLine(`OBS Websockets Version" ${result.obsWebsocketVersion}`);
 			 });
+		setStatusBarText();
+	});
+
+	obs.addListener("AuthenticationFailure", () =>{
+		authFailure = true;
+		obsOutputChannel.appendLine(`Failed to authenticate with the OBS Websockets server.`);
 	});
 
 	obs.addListener("ConnectionClosed", () => {
 		obsConnected = false;
 		obsOutputChannel.appendLine("Disconnected from OBS-Studio");
-		if (isRetrying) { return; }
+		setStatusBarText();
+		if (isRetrying || authFailure) { return; }
 		isRetrying = true;
 		tryConnect();
 	});
@@ -115,15 +131,33 @@ function gotoOriginalScene() {
 
 function tryConnect() {
 	obsConnected = false;
-	if (retryCount++ < 5) {
+	if (retryCount++ < 5 && !authFailure) {
 		obsOutputChannel.appendLine(`Trying to connect to OBS @ ${obsSocketUrl}...`);
-		obs.connect({ address: obsSocketUrl }, (err?: Error) => {
-			if (!err) { return; }
+		obs.connect({ address: obsSocketUrl, password: obsSocketPassword }, (err?: any) => {
+			if (!err || err.messageId === "2") { return; }
 			setTimeout(tryConnect, 5000);
 			obsOutputChannel.appendLine(`Could not establish a connection with the OBS Websocket server @ ${obsSocketUrl}.`);
-		});
+			console.error(`[Failed connection] ${err.message}`);
+		}).catch(reason => { console.error(reason); });
 	} else {
+		isRetrying = false;
 		obsOutputChannel.appendLine("Exhausted all attempts to connect to OBS-Studio.");
+		setStatusBarText();
+	}
+}
+
+function setStatusBarText() {
+	if (obsConnected) {
+		myStatusBarItem.text = "$(radio-tower) Connected";
+		myStatusBarItem.tooltip = "Connected to OBS-Studio";
+	}
+	else if (isRetrying) {
+		myStatusBarItem.text = "$(radio-tower) Reconnecting...";
+		myStatusBarItem.tooltip = "Trying to connect to OBS-Studio";
+	}
+	else {
+		myStatusBarItem.text = "$(radio-tower) Disconnected";
+		myStatusBarItem.tooltip = "Disconnected to OBS-Studio";
 	}
 }
 
@@ -169,26 +203,47 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	let startConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.startConnection", () => {
+	let startConnection = () => {
 		retryCount = 0;
+		authFailure = false;
 		tryConnect();
-	});
+	};
 
-	let stopConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.stopConnection", () => {
+	let stopConnection = () => {
 		if (!obsConnected) { return; }
 		obsOutputChannel.appendLine("Disconnecting from OBS-Studio");
 		isRetrying = true;
 		obs.disconnect();
+	};
+
+	let startConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.startConnection", startConnection);
+
+	let stopConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.stopConnection", stopConnection);
+
+	let toggleConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.toggleConnection", () => {
+		if (!obsConnected) {
+			startConnection();
+		}
+		else {
+			stopConnection();
+		}
 	});
+
+	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	myStatusBarItem.command = 'obs.secretsSwitchScene.toggleConnection';
+	myStatusBarItem.show();
 
 	context.subscriptions.push(documentOpenedEvent);
 	context.subscriptions.push(workspaceSettingsChangedEvent);
 	context.subscriptions.push(startConnectionCommand);
 	context.subscriptions.push(stopConnectionCommand);
+	context.subscriptions.push(toggleConnectionCommand);
+	context.subscriptions.push(myStatusBarItem);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+	myStatusBarItem.dispose();
 	obs.removeAllListeners();
 	obs.disconnect();
 }

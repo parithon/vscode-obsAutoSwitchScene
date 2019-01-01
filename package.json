@@ -4,7 +4,7 @@
 	"description": "",
 	"publisher": "parithon",
 	"license": "SEE LICENSE",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"homepage": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene/README.md",
 	"bugs": {
 		"email": "parithon@outlook.com",
@@ -57,6 +57,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Automatically switch back to the previous scene after you close the file containing secrets."
+				},
+				"obs.secretsSwitchScene.password": {
+					"type": "string",
+					"default": null,
+					"description": "The password to use while connecting to the OBS Websocket server."
 				}
 			}
 		}
