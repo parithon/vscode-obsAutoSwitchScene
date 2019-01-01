@@ -1,0 +1,50 @@
+trigger:
+- master
+- dev
+- release/*
+
+pr:
+- master
+- dev
+- release/*
+
+jobs:
+- job: Windows
+  pool:
+    name: Hosted VS2017
+    demands: npm
+  steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '8.x'
+    displayName: 'Install Node.js 8.x'
+  - script: |
+      npm install
+      npm run compile
+    displayName: 'npm install and compile'
+- job: macOS
+  pool:
+    name: Hosted macOS
+    demands: npm
+  steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '8.x'
+    displayName: 'Install Node.js 8.x'
+  - script: |
+      npm install
+      npm run compile
+    displayName: 'npm install and compile'
+- job: Linux
+  pool:
+    name: Hosted Ubuntu 1604
+    demands: npm
+  steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '8.x'
+    displayName: 'Install Node.js 8.x'
+  - script: |
+      npm install
+      npm run compile
+    displayName: 'npm install and compile'
