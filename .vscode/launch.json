@@ -10,7 +10,9 @@
 			"request": "launch",
 			"runtimeExecutable": "${execPath}",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--disable-extensions",
+				"--disable-gpu",
+				"--extensionDevelopmentPath=${workspaceFolder}"				
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"

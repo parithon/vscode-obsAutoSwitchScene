@@ -11,7 +11,7 @@
 		"url": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene/issues"
 	},
 	"repository": {
-		"type":"git",
+		"type": "git",
 		"url": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene.git"
 	},
 	"engines": {
@@ -33,7 +33,7 @@
 			{
 				"command": "obs.secretsSwitchScene.stopConnection",
 				"title": "Stop connection with OBS-Studio"
-			}			
+			}
 		],
 		"configuration": {
 			"title": "OBS Secrets Switch Scene",
