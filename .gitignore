@@ -59,3 +59,9 @@ typings/
 
 # next.js build output
 .next
+
+# code
+out
+node_modules
+.vscode-test/
+*.vsix
