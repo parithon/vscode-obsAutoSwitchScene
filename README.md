@@ -23,6 +23,11 @@ This extension contributes the following settings:
 * `obs.secretsSwitchScene.scene`: The scene to automatically switch to if a file containing secrets is opened.
 * `obs.secretsSwitchScene.autoSwitchBack`: Automatically switch back to the previous scene after you close the file containing secrets.
 
+## Known issues
+
+- The plugin will only work if OBS is open and the Websockets server is enabled prior to loading VSCode.
+- No connection state tracking of the websockets is currently in place. If the connection is lost you will have to reload VSCode.
+
 ## Release Notes
 
 ### 1.0.0
