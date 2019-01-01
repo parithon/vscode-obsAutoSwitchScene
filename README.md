@@ -1,6 +1,10 @@
 # vscode-obs-websockets-secretsswitchscene
 A Microsoft Visual Studio Code extension to switch OBS Studio scenes when you open a filename which has been designated to have secrets within its contents.
 
+Master | Dev
+:---: | :---:
+[![Build Status](https://dev.azure.com/parithon/vscode-obs-websockets-secretsswitchscene/_apis/build/status/parithon.vscode-obs-websockets-secretsswitchscene?branchName=master)](https://dev.azure.com/parithon/vscode-obs-websockets-secretsswitchscene/_build/latest?definitionId=42?branchName=master) | [![Build Status](https://dev.azure.com/parithon/vscode-obs-websockets-secretsswitchscene/_apis/build/status/parithon.vscode-obs-websockets-secretsswitchscene?branchName=dev)](https://dev.azure.com/parithon/vscode-obs-websockets-secretsswitchscene/_build/latest?definitionId=42?branchName=dev)
+
 ## Features
 
 - Start a connection to OBS using the command `Start connection to OBS-Studio`
