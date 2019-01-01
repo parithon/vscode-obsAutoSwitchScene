@@ -3,6 +3,8 @@ A Microsoft Visual Studio Code extension to switch OBS Studio scenes when you op
 
 ## Features
 
+- Start a connection to OBS using the command `Start connection to OBS-Studio`
+- Stop a connection to OBS using the command `Stop connection to OBS-Studio`
 - Switches scenes if the filename opened by the editor matches filenames set in your workspace settings.
 - Switches scenes without any transition in order to ensure the scene switches as quickly as possible.
 - Automatically switches back to the original scene when you either close or switch tabs from the filename identified above.
@@ -25,10 +27,14 @@ This extension contributes the following settings:
 
 ## Known issues
 
-- The plugin will only work if OBS is open and the Websockets server is enabled prior to loading VSCode.
-- No connection state tracking of the websockets is currently in place. If the connection is lost you will have to reload VSCode.
+No issues are known at this time.
 
 ## Release Notes
+
+### 1.1.0
+
+Added the ability for the extension to manage the connection state and try to reconnect up to 5 times.
+Also added commands to start and stop the connection manually.
 
 ### 1.0.0
 
