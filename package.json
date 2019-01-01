@@ -2,7 +2,18 @@
 	"name": "vscode-obs-websockets-secretsswitchscene",
 	"displayName": "vscode-obs-websockets-secretsswitchscene",
 	"description": "",
+	"publisher": "parithon",
+	"license": "SEE LICENSE",
 	"version": "1.1.0",
+	"homepage": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene/README.md",
+	"bugs": {
+		"email": "parithon@outlook.com",
+		"url": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene/issues"
+	},
+	"repository": {
+		"type":"git",
+		"url": "https://github.com/parithon/vscode-obs-websockets-secretsswitchscene.git"
+	},
 	"engines": {
 		"vscode": "^1.30.0"
 	},
