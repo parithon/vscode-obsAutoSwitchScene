@@ -33,6 +33,10 @@
 			{
 				"command": "obs.secretsSwitchScene.stopConnection",
 				"title": "Stop connection with OBS-Studio"
+			},
+			{
+				"command": "obs.secretsSwitchScene.addFileToSecrets",
+				"title": "Add as a Secrets File"
 			}
 		],
 		"configuration": {
@@ -64,6 +68,14 @@
 					"description": "The password to use while connecting to the OBS Websocket server."
 				}
 			}
+		},
+		"menus": {
+			"explorer/context": [
+				{
+					"when": "resourceScheme == file",
+					"command": "obs.secretsSwitchScene.addFileToSecrets"
+				}
+			]
 		}
 	},
 	"scripts": {

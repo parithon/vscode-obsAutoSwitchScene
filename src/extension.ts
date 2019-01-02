@@ -186,7 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
 			// that was set prior to automatically switching
 			if (sceneSwitched) {
 				gotoOriginalScene();
-			}		
+			}
 
 			// Check if fileName matches a secrets fileName
 			if (secretsFileNames.indexOf(fileName) > -1) {
@@ -229,6 +229,22 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	let addFileToSecrets = (selectedFile: any, selectedFiles: any) => {
+		console.log(`Adding file to secrets`);
+		
+		const settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
+		let fileNames = settings.get<string[]>('fileNames') || new Array<string>();
+		selectedFiles.map((file: any) => {
+			const fileName = path.parse(file.path).base;
+			if (fileNames.findIndex(f => f === fileName) === -1) {
+				fileNames.push(fileName);
+			}
+		});
+		settings.update("fileNames", fileNames);
+	};
+	
+	let addFileToSecretsCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.addFileToSecrets", addFileToSecrets);
+
 	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 	myStatusBarItem.command = 'obs.secretsSwitchScene.toggleConnection';
 	myStatusBarItem.show();
@@ -239,6 +255,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(stopConnectionCommand);
 	context.subscriptions.push(toggleConnectionCommand);
 	context.subscriptions.push(myStatusBarItem);
+	context.subscriptions.push(addFileToSecretsCommand);
 }
 
 // this method is called when your extension is deactivated
