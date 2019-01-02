@@ -9,6 +9,7 @@ Master | Dev
 
 - Start a connection to OBS using the command `Start connection to OBS-Studio`
 - Stop a connection to OBS using the command `Stop connection to OBS-Studio`
+- Add the selected file(s) to settings `Add as a Secrets File`
 - Switches scenes if the filename opened by the editor matches filenames set in your workspace settings.
 - Switches scenes without any transition in order to ensure the scene switches as quickly as possible.
 - Automatically switches back to the original scene when you either close or switch tabs from the filename identified above.
