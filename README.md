@@ -36,15 +36,15 @@ This extension contributes the following settings:
 
 ## Release Notes
 
-### 1.2.0
+### 0.2.0
 
 Added a status bar indicator to VSCode
 
-### 1.1.0
+### 0.1.0
 
 Added the ability for the extension to manage the connection state and try to reconnect up to 5 times.
 Also added commands to start and stop the connection manually.
 
-### 1.0.0
+### 0.0.1
 
 Initial release
