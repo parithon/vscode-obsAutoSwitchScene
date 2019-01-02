@@ -25,20 +25,6 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-		"commands": [
-			{
-				"command": "obs.secretsSwitchScene.startConnection",
-				"title": "Start connection to OBS-Studio"
-			},
-			{
-				"command": "obs.secretsSwitchScene.stopConnection",
-				"title": "Stop connection with OBS-Studio"
-			},
-			{
-				"command": "obs.secretsSwitchScene.addFileToSecrets",
-				"title": "Add as a Secrets File"
-			}
-		],
 		"configuration": {
 			"title": "OBS Secrets Switch Scene",
 			"properties": {
@@ -69,11 +55,45 @@
 				}
 			}
 		},
+		"commands": [
+			{
+				"command": "obs.secretsSwitchScene.startConnection",
+				"title": "Start connection to OBS-Studio"
+			},
+			{
+				"command": "obs.secretsSwitchScene.stopConnection",
+				"title": "Stop connection with OBS-Studio"
+			},
+			{
+				"command": "obs.secretsSwitchScene.addFileToSecrets",
+				"title": "Add as a Secrets File"
+			},
+			{
+				"command": "obs.secretsSwitchScene.removeFileFromSecrets",
+				"title": "Remove as a Secrets File"
+			}
+		],
 		"menus": {
+			"commandPalette": [
+				{
+					"when": "false",
+					"command": "obs.secretsSwitchScene.addFileToSecrets"
+				},
+				{
+					"when": "false",
+					"command": "obs.secretsSwitchScene.removeFileFromSecrets"
+				}
+			],
 			"explorer/context": [
 				{
 					"when": "resourceScheme == file",
-					"command": "obs.secretsSwitchScene.addFileToSecrets"
+					"command": "obs.secretsSwitchScene.addFileToSecrets",
+					"group": "2_workspace"
+				},
+				{
+					"when": "resourceScheme == file",
+					"command": "obs.secretsSwitchScene.removeFileFromSecrets",
+					"group": "2_workspace"
 				}
 			]
 		}

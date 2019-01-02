@@ -245,6 +245,21 @@ export function activate(context: vscode.ExtensionContext) {
 	
 	let addFileToSecretsCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.addFileToSecrets", addFileToSecrets);
 
+	let removeFileFromSecrets = (selectedFile: any, selectedFiles: any) => {
+		console.log(`Removing file from secrets`);
+
+		const settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
+		let fileNames = settings.get<string[]>('fileNames') || new Array<string>();
+		selectedFiles.map((file: any) => {
+			const fileName = path.parse(file.path).base;
+			fileNames = fileNames.filter(f => f !== fileName);
+		});
+
+		settings.update("fileNames", fileNames);
+	};
+
+	let removeFileFromSecretsCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.removeFileFromSecrets", removeFileFromSecrets);
+
 	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 	myStatusBarItem.command = 'obs.secretsSwitchScene.toggleConnection';
 	myStatusBarItem.show();
@@ -256,6 +271,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(toggleConnectionCommand);
 	context.subscriptions.push(myStatusBarItem);
 	context.subscriptions.push(addFileToSecretsCommand);
+	context.subscriptions.push(removeFileFromSecretsCommand);
 }
 
 // this method is called when your extension is deactivated
