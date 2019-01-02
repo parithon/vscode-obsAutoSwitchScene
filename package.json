@@ -40,7 +40,7 @@
 				},
 				"obs.secretsSwitchScene.scene": {
 					"type": "string",
-					"default": "Scene1",
+					"default": "Scene",
 					"description": "The scene to automatically switch to if a file containing secrets is opened."
 				},
 				"obs.secretsSwitchScene.autoSwitchBack": {
