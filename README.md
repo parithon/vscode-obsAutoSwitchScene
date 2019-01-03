@@ -32,7 +32,7 @@ This extension contributes the following settings:
 
 ## Known issues
 
-* The extension currently uses the workspace settings (.vscode/settings.json) file to store its configuration. As a result you will need to enter the OBS websocket settings for every project. Additionally, the socket server password is also saved in this location. The settings.json file should be added to .gitignore until we can move the settings to another location outside of the workspace.
+* The extension currently uses the workspace settings (.vscode/settings.json) file to store its configuration. Additionally, the socket server password is also saved in this location. The settings.json file should be added to .gitignore until we can move the settings to another location outside of the workspace.
 
 ## Release Notes
 
