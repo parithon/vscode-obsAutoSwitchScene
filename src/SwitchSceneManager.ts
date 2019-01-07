@@ -143,6 +143,7 @@ export class SwitchSceneManager extends Disposable {
   }
 
   public dispose() {
+    this.outputChannel.dispose();
     this.disconnect();
   }
 
@@ -152,10 +153,12 @@ export class SwitchSceneManager extends Disposable {
     this.retryConnection = true;
     this.retryCount = 0;
     this.outputChannel.appendLine(`Connected to OBS Studio!`);
-    this.obs.send('GetVersion').then((info: OBSVersionInfoResponse) => this.showVersionInfo(info));
-    if (this.onConnectedEvent) {
-      this.onConnectedEvent();
-    }
+    this.obs.send('GetVersion').then((info: OBSVersionInfoResponse) => {
+      this.showVersionInfo(info);
+      if (this.onConnectedEvent) {
+        setTimeout(this.onConnectedEvent(), 1000);
+      }
+    });
   }
 
   private connectionClosed() {
