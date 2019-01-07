@@ -33,19 +33,19 @@ This extension contributes the following settings:
 
 ## Known issues
 
-No issues are known at this time.
+* The extension currently uses the workspace settings (.vscode/settings.json) file to store its configuration. Additionally, the socket server password is also saved in this location. The settings.json file should be added to .gitignore until we can move the settings to another location outside of the workspace.
 
 ## Release Notes
 
-### 1.2.0
+### 0.2.0
 
 Added a status bar indicator to VSCode
 
-### 1.1.0
+### 0.1.0
 
 Added the ability for the extension to manage the connection state and try to reconnect up to 5 times.
 Also added commands to start and stop the connection manually.
 
-### 1.0.0
+### 0.0.1
 
 Initial release
