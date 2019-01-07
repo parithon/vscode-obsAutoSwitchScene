@@ -1,249 +1,177 @@
-/// <reference path="../node_modules/obs-websocket-js-types/index.d.ts" />
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as OBSWebSocket from 'obs-websocket-js';
+import SwitchSceneManager from './SwitchSceneManager';
+import { Commands } from './Commands';
+import CredentialManager from './CredentialManager';
+import { SwitchSceneSettings } from './SwitchSceneSettings';
+import { Constants } from './Constants';
+import * as minimatchtype from 'minimatch';
+import { getNodeModule } from './NodeModules';
 
-const obs = new OBSWebSocket();
-
-let obsSocketUrl: string;
-let secretsFileNames: string[] = new Array<string>();
-let secretsScene: string;
-let obsConnected: boolean = false;
-let originalScene: string;
-let originalTransitionDuration: number;
-let sceneSwitched: boolean = false;
-let autoSwitchBack: boolean = true;
-let retryCount: number = 0;
-let isRetrying: boolean = false;
-let obsOutputChannel: vscode.OutputChannel;
-let obsSocketPassword: string | undefined;
-let authFailure: boolean;
-let myStatusBarItem: vscode.StatusBarItem;
-
-function initializeSettings()
-{
-	let settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
-
-	if (settings.has('socketsUrl')) {
-		obsSocketUrl = settings.get<string>('socketsUrl') as string;
-	}
-
-	if (settings.has('fileNames')) {
-		let fileNames = settings.get<string[]>('fileNames');
-		if(fileNames !== undefined) {
-			fileNames.map(fileName => secretsFileNames.push(fileName));
-		}
-	}
-	
-	if (settings.has('scene')) {
-		secretsScene = settings.get<string>("scene") as string;
-	}
-	
-	if (settings.has('autoSwitchBack')) {
-		autoSwitchBack = settings.get<boolean>("autoSwitchBack") as boolean;
-	}
-
-	if (settings.has('password')) { 
-		obsSocketPassword = settings.get<string>('password');
-		if (obsSocketPassword === null) {
-			obsSocketPassword = undefined;
-		}
-	}
-}
-
-function initializeObs() {
-
-	obsOutputChannel = vscode.window.createOutputChannel('obs-studio');
-
-	obs.addListener("ConnectionOpened", () => {
-		obsConnected = true;
-		isRetrying = false;
-		retryCount = 0;
-		obsOutputChannel.appendLine(`Connected to OBS-Studio!`);
-		obs.send("GetVersion")
-			 .then(result => {
-					obsOutputChannel.appendLine(`OBS Studio Version: ${result.obsStudioVersion}`);
-					obsOutputChannel.appendLine(`OBS Websockets Version" ${result.obsWebsocketVersion}`);
-			 });
-		setStatusBarText();
-	});
-
-	obs.addListener("AuthenticationFailure", () =>{
-		authFailure = true;
-		obsOutputChannel.appendLine(`Failed to authenticate with the OBS Websockets server.`);
-	});
-
-	obs.addListener("ConnectionClosed", () => {
-		obsConnected = false;
-		obsOutputChannel.appendLine("Disconnected from OBS-Studio");
-		setStatusBarText();
-		if (isRetrying || authFailure) { return; }
-		isRetrying = true;
-		tryConnect();
-	});
-}
-
-function gotoSecretsScene()
-{
-	// Get the current scene
-	obs.send("GetCurrentScene")
-	.then(result => {
-		originalScene = result.name;
-		obsOutputChannel.appendLine(`Current Scene: ${result.name}`);
-		obsOutputChannel.appendLine(`Switching to ${secretsScene}`);
-	});
-
-	// Get the transition duration
-	obs.send("GetTransitionDuration")
-		 .then(result => originalTransitionDuration = result.transitionDuration);
-
-	// Ensure the scene switches as quickly as possible.
-	obs.send("SetTransitionDuration", { "duration": 0 });
-
-	// Switch the scene
-	obs.send("SetCurrentScene", {
-		"scene-name": secretsScene,
-		"sceneName": secretsScene
-	}).then(() => {
-		sceneSwitched = true;
-		vscode.window.showInformationMessage(`You opened a file which contains Secrets! OBS scene switched to '${secretsScene}'.`);
-	})
-	.catch(result => {
-		obsOutputChannel.appendLine(`An error occured while switching scenes: ${result.error}.`);
-		vscode.window.showErrorMessage(`An error occured while switching scenes.`);
-	});
-}
-
-function gotoOriginalScene() {
-	sceneSwitched = false;
-
-	obs.send("SetTransitionDuration", { "duration": originalTransitionDuration });
-
-	if (autoSwitchBack) {
-		obs.send("SetCurrentScene", {
-			"scene-name": originalScene,
-			"sceneName": originalScene
-		}).then(() => obsOutputChannel.appendLine(`Switched scene back to the original scene '${originalScene}'.`));
-	}
-}
-
-function tryConnect() {
-	obsConnected = false;
-	if (retryCount++ < 5 && !authFailure) {
-		obsOutputChannel.appendLine(`Trying to connect to OBS @ ${obsSocketUrl}...`);
-		obs.connect({ address: obsSocketUrl, password: obsSocketPassword }, (err?: any) => {
-			if (!err || err.messageId === "2") { return; }
-			setTimeout(tryConnect, 5000);
-			obsOutputChannel.appendLine(`Could not establish a connection with the OBS Websocket server @ ${obsSocketUrl}.`);
-			console.error(`[Failed connection] ${err.message}`);
-		}).catch(reason => { console.error(reason); });
-	} else {
-		isRetrying = false;
-		obsOutputChannel.appendLine("Exhausted all attempts to connect to OBS-Studio.");
-		setStatusBarText();
-	}
-}
+let ssm: SwitchSceneManager;
+let switchSceneStatusBar: vscode.StatusBarItem;
+const minimatch: typeof minimatchtype | undefined = getNodeModule<typeof minimatchtype>('minimatch');
+const config = () => vscode.workspace.getConfiguration(Constants.Namespace);
+const settings: SwitchSceneSettings = {
+  autoSwitchBack: config().get<boolean>('autoSwitchBack', true),
+  fileNames: config().get<string[]>('fileNames', []),
+  scene: config().get<string>('scene', 'Scene'),
+  serviceUrl: config().get<string>('serviceUrl', 'localhost:4444'),
+  usePassword: config().get<boolean>('usePassword', false)
+};
 
 function setStatusBarText() {
-	if (obsConnected) {
-		myStatusBarItem.text = "$(radio-tower) Connected";
-		myStatusBarItem.tooltip = "Connected to OBS-Studio";
-	}
-	else if (isRetrying) {
-		myStatusBarItem.text = "$(radio-tower) Reconnecting...";
-		myStatusBarItem.tooltip = "Trying to connect to OBS-Studio";
-	}
-	else {
-		myStatusBarItem.text = "$(radio-tower) Disconnected";
-		myStatusBarItem.tooltip = "Disconnected to OBS-Studio";
-	}
+  const iconName = '$(radio-tower)';
+  if (ssm.connected()) {
+    switchSceneStatusBar.text = `${iconName} Connected`;
+    switchSceneStatusBar.tooltip = "Connected to OBS Studio";
+  } else if (ssm.connecting()) {
+    switchSceneStatusBar.text = `${iconName} Connecting...`;
+    switchSceneStatusBar.tooltip = "Trying to connect to OBS Studio";
+  } else {
+    switchSceneStatusBar.text = `${iconName} Disconnected`;
+    switchSceneStatusBar.tooltip = "Disconnected from OBS-Studio";
+  }
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-	
-	initializeSettings();
-
-	initializeObs();
-
-	tryConnect();
-
-	// Check editor.document.fileName against known secrets fileNames and
-	// also against user-specified secrets fileNames and switch
-	// scenes if this document matches.
-	let documentOpenedEvent = vscode.window.onDidChangeActiveTextEditor(
-		editor => {
-			// Sanity check
-			if (!editor || !obsConnected) { return; }
-			
-			// Gather the fileName only
-			const fileName = path.parse(editor.document.fileName).base;
-
-			// Switch the scene back to the original scene
-			// that was set prior to automatically switching
-			if (sceneSwitched) {
-				gotoOriginalScene();
-			}		
-
-			// Check if fileName matches a secrets fileName
-			if (secretsFileNames.indexOf(fileName) > -1) {
-				gotoSecretsScene();
-			}
-		});
-
-	// If the workspace settings change and it affects our plugin
-	// then load the new settings.
-	let workspaceSettingsChangedEvent = vscode.workspace.onDidChangeConfiguration(
-		changes => {
-			if (!changes.affectsConfiguration("obs.secretsSwitchScene")) { return; }
-			initializeSettings();
-		}
-	);
-
-	let startConnection = () => {
-		retryCount = 0;
-		authFailure = false;
-		tryConnect();
-	};
-
-	let stopConnection = () => {
-		if (!obsConnected) { return; }
-		obsOutputChannel.appendLine("Disconnecting from OBS-Studio");
-		isRetrying = true;
-		obs.disconnect();
-	};
-
-	let startConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.startConnection", startConnection);
-
-	let stopConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.stopConnection", stopConnection);
-
-	let toggleConnectionCommand = vscode.commands.registerCommand("obs.secretsSwitchScene.toggleConnection", () => {
-		if (!obsConnected) {
-			startConnection();
-		}
-		else {
-			stopConnection();
-		}
-	});
-
-	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-	myStatusBarItem.command = 'obs.secretsSwitchScene.toggleConnection';
-	myStatusBarItem.show();
-
-	context.subscriptions.push(documentOpenedEvent);
-	context.subscriptions.push(workspaceSettingsChangedEvent);
-	context.subscriptions.push(startConnectionCommand);
-	context.subscriptions.push(stopConnectionCommand);
-	context.subscriptions.push(toggleConnectionCommand);
-	context.subscriptions.push(myStatusBarItem);
+function start() {
+  ssm.connect(true);
 }
 
-// this method is called when your extension is deactivated
+function stop() {
+  ssm.disconnect();
+}
+
+function toggleConnection() {
+  ssm.toggleConnection();
+}
+
+function setPassword() {
+  vscode.window.showInputBox({
+    placeHolder: 'Type the OBS Websocket password',
+    password: true
+  }).then((result) => {
+    if (result !== undefined) {
+      CredentialManager.setPassword(settings.serviceUrl, result);
+      //ssm.setPassword(result);
+    } else {
+      vscode.window.showErrorMessage('You cannot use an empty password.');
+      setPassword();
+    }
+  });
+}
+
+function deletePassword() {
+  CredentialManager.deletePassword(settings.serviceUrl);
+}
+
+function autoSwitchScene(e: vscode.TextEditor | undefined) {
+  if (!e || !ssm.connected()) { return; }
+  const path = ('./' + e.document.fileName.substr((vscode.workspace.rootPath || "").length).replace(/\\/g,'/')).replace(/\/\//g,'/');
+  const idx = settings.fileNames.findIndex(f => {
+    if (!minimatch) { return false; }
+    return minimatch(path, f);
+  });
+  if (idx > -1) {
+    ssm.switchScene(settings.scene, 0);
+  } else {
+    if (ssm.sceneSwitched()) {
+      ssm.revertSwitchScene();
+    }
+  }
+}
+
+function setupSwitchSceneManager(passwd?: string) {
+  ssm = new SwitchSceneManager(settings.serviceUrl, passwd);
+  ssm.onConnectedEvent = setStatusBarText;
+  ssm.onDisconnectedEvent = setStatusBarText;
+  ssm.onExhaustedRetriesEvent = setStatusBarText;
+  switchSceneStatusBar.show();
+  setStatusBarText();
+}
+
+async function initializeSwitchSceneManager() {
+  if (await CredentialManager.findPassword()) {
+    CredentialManager.getPassword(settings.serviceUrl)
+      .then(value => {
+        setupSwitchSceneManager(value || undefined);
+      });
+  } else {
+    setupSwitchSceneManager();
+  }
+}
+
+function addFiles(file: any, selectedFiles: any[]) {
+  let fileNames = config().get<string[]>('fileNames', []);
+  if (!selectedFiles || selectedFiles.length === 0) {
+    selectedFiles = [file];
+  }
+  selectedFiles.forEach(f => {
+    const path = ('./' + f.fsPath.substr((vscode.workspace.rootPath || "").length).replace(/\\/g,'/')).replace(/\/\//g,'/');
+    const globs = fileNames.filter(fileName => {
+      if (!minimatch) { return false; }
+      return minimatch(path, fileName, { matchBase: true });
+    });
+    if (globs.length > 0) { return; }
+    fileNames.push(path);
+  });
+  config().update('fileNames', fileNames);
+}
+
+function removeFiles(file: any, selectedFiles: any[]) {
+  let fileNames = config().get<string[]>('fileNames', []);
+  if (!selectedFiles || selectedFiles.length === 0) {
+    selectedFiles = [file];
+  }
+  selectedFiles.forEach(f => {
+    const path = ('./' + f.fsPath.substr((vscode.workspace.rootPath || "").length).replace(/\\/g,'/')).replace(/\/\//g,'/');
+    fileNames = fileNames.filter(fileName => {
+      if (!minimatch) { return false; }
+      return !minimatch(path, fileName, { matchBase: true });
+    });
+  });
+  config().update('fileNames', fileNames);
+}
+
+function workspaceSettingsChanged(e: vscode.ConfigurationChangeEvent) {
+  if (e.affectsConfiguration(`${Constants.Namespace}`)) {
+    ssm.dispose();
+    // Re-initialize the manager and autoswitchscene if the settings included the
+    // file currently in the active text editor matches the new settings
+    initializeSwitchSceneManager().then(() => autoSwitchScene(vscode.window.activeTextEditor));
+  }
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+  context = context;
+  initializeSwitchSceneManager();
+  
+  switchSceneStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  switchSceneStatusBar.command = Commands.ToggleCommand;  
+  
+  const startCommand = vscode.commands.registerCommand(Commands.StartCommand, start);
+  const stopCommand = vscode.commands.registerCommand(Commands.StopCommand, stop);
+  const toggleCommand = vscode.commands.registerCommand(Commands.ToggleCommand, toggleConnection);
+  const setPasswordCommand = vscode.commands.registerCommand(Commands.SetPasswordCommand, setPassword);
+  const deletePasswordCommand = vscode.commands.registerCommand(Commands.DeletePasswordCommand, deletePassword);
+  
+  const addFilesToFileNamesCommand = vscode.commands.registerCommand(Commands.AddFilesToFileNamesCommand, addFiles);
+  const removeFilesFromFileNamesCommand = vscode.commands.registerCommand(Commands.RemoveFilesFromFileNamesCommand, removeFiles);
+  
+  const visibleTextEditorsEvent = vscode.window.onDidChangeActiveTextEditor(autoSwitchScene);
+  const workspaceSettingsChangedEvent = vscode.workspace.onDidChangeConfiguration(workspaceSettingsChanged);
+
+  context.subscriptions.push(startCommand);
+  context.subscriptions.push(stopCommand);
+  context.subscriptions.push(toggleCommand);
+  context.subscriptions.push(setPasswordCommand);
+  context.subscriptions.push(deletePasswordCommand);
+  context.subscriptions.push(visibleTextEditorsEvent);
+  context.subscriptions.push(workspaceSettingsChangedEvent);
+  context.subscriptions.push(addFilesToFileNamesCommand);
+  context.subscriptions.push(removeFilesFromFileNamesCommand);
+  context.subscriptions.push(switchSceneStatusBar);
+}
+
 export function deactivate() {
-	myStatusBarItem.dispose();
-	obs.removeAllListeners();
-	obs.disconnect();
+  ssm.dispose();
 }
