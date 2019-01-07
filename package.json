@@ -26,76 +26,73 @@
 	"main": "./out/extension.js",
 	"contributes": {
 		"configuration": {
-			"title": "OBS Secrets Switch Scene",
+			"title": "OBS Switch Scene",
 			"properties": {
-				"obs.secretsSwitchScene.socketsUrl": {
+				"obsAutoSwitchScene.serviceUrl": {
 					"type": "string",
 					"default": "localhost:4444",
-					"description": "The OBS Websocket URL and Port. (localhost:4444)"
+					"description": "The OBS Websocket URL and port. (localhost:4444)"
 				},
-				"obs.secretsSwitchScene.fileNames": {
-					"type": "array",
-					"default": [],
-					"description": "A list of filenames that contain secrets."
+				"obsAutoSwitchScene.usePassword": {
+					"type": "boolean",
+					"default": false,
+					"description": "Whether or not to use a password to connect to OBS using your OS' password store"
 				},
-				"obs.secretsSwitchScene.scene": {
+				"obsAutoSwitchScene.scene": {
 					"type": "string",
 					"default": "Scene",
-					"description": "The scene to automatically switch to if a file containing secrets is opened."
+					"description": "The scene to auutomatically switch to when the fullname of the file matches one of the fileNames settings."
 				},
-				"obs.secretsSwitchScene.autoSwitchBack": {
+				"obsAutoSwitchScene.AutoSwitchBack": {
 					"type": "boolean",
 					"default": true,
-					"description": "Automatically switch back to the previous scene after you close the file containing secrets."
+					"description": "Automatically switch back to the previous scene when the file is closed"
 				},
-				"obs.secretsSwitchScene.password": {
-					"type": "string",
-					"default": null,
-					"description": "The password to use while connecting to the OBS Websocket server."
+				"obsAutoSwitchScene.fileNames": {
+					"type": "array",
+					"default": [],
+					"description": "A list of blobs to match"
 				}
 			}
 		},
 		"commands": [
 			{
-				"command": "obs.secretsSwitchScene.startConnection",
-				"title": "Start connection to OBS-Studio"
+				"command": "obsAutoSwitchScene.startCommand",
+				"title": "Start connection to OBS Studio"
 			},
 			{
-				"command": "obs.secretsSwitchScene.stopConnection",
-				"title": "Stop connection with OBS-Studio"
+				"command": "obsAutoSwitchScene.stopCommand",
+				"title": "Stop connection with OBS Studio"
 			},
 			{
-				"command": "obs.secretsSwitchScene.addFileToSecrets",
-				"title": "Add as a Secrets File"
+				"command": "obsAutoSwitchScene.toggleCommand",
+				"title": "Toggle the connection to OBS Studio"
 			},
 			{
-				"command": "obs.secretsSwitchScene.removeFileFromSecrets",
-				"title": "Remove as a Secrets File"
+				"command": "obsAutoSwitchScene.setPasswordCommand",
+				"title": "Set the OBS Websocket password"
+			},
+			{
+				"command": "obsAutoSwitchScene.deletePasswordCommand",
+				"title": "Delete the OBS Websocket password"
 			}
 		],
 		"menus": {
 			"commandPalette": [
 				{
 					"when": "false",
-					"command": "obs.secretsSwitchScene.addFileToSecrets"
+					"command": "obsAutoSwitchScene.toggleCommand"
 				},
 				{
-					"when": "false",
-					"command": "obs.secretsSwitchScene.removeFileFromSecrets"
+					"when": "config.obsAutoSwitchScene.usePassword",
+					"command": "obsAutoSwitchScene.setPasswordCommand"
+				},
+				{
+					"when": "config.obsAutoSwitchScene.usePassword",
+					"command": "obsAutoSwitchScene.deletePasswordCommand"
 				}
 			],
-			"explorer/context": [
-				{
-					"when": "resourceScheme == file",
-					"command": "obs.secretsSwitchScene.addFileToSecrets",
-					"group": "2_workspace"
-				},
-				{
-					"when": "resourceScheme == file",
-					"command": "obs.secretsSwitchScene.removeFileFromSecrets",
-					"group": "2_workspace"
-				}
-			]
+			"explorer/context": []
 		}
 	},
 	"scripts": {
@@ -106,6 +103,8 @@
 		"test": "npm run compile && node ./node_modules/vscode/bin/test"
 	},
 	"devDependencies": {
+		"@types/keytar": "4.0.1",
+		"@types/minimatch": "^3.0.3",
 		"@types/mocha": "^2.2.42",
 		"@types/node": "^8.10.25",
 		"obs-websocket-js-types": "^4.4.0",

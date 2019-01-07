@@ -1,135 +1,128 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as path from 'path';
-import Commands from './Commands';
-import IOBSWebSocketProxy from './IOBSWebSocketProxy';
-import OBSWebSocketProxy from './OBSWebSocketProxy';
-import Constants from './Constants';
+import SwitchSceneManager from './SwitchSceneManager';
+import { Commands } from './Commands';
+import CredentialManager from './CredentialManager';
+import { SwitchSceneSettings } from './SwitchSceneSettings';
+import { Constants } from './Constants';
+import * as minimatchtype from 'minimatch';
+import { getNodeModule } from './NodeModules';
 
-let proxy: IOBSWebSocketProxy;
-let secretsFileNames: string[];
-let myStatusBarItem: vscode.StatusBarItem;
+let ssm: SwitchSceneManager;
+let switchSceneStatusBar: vscode.StatusBarItem;
+const minimatch: typeof minimatchtype | undefined = getNodeModule<typeof minimatchtype>('minimatch');
+const config: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration(Constants.Namespace);
+const settings: SwitchSceneSettings = {
+  autoSwitchBack: config.get<boolean>('autoSwitchBack', true),
+  fileNames: config.get<string[]>('fileNames', []),
+  scene: config.get<string>('scene', 'Scene'),
+  serviceUrl: config.get<string>('serviceUrl', 'localhost:4444'),
+  usePassword: config.get<boolean>('usePassword', false)
+};
 
 function setStatusBarText() {
-	if (proxy.isConnected()) {
-		myStatusBarItem.text = "$(radio-tower) Connected";
-		myStatusBarItem.tooltip = "Connected to OBS-Studio";
-	}
-	else if (proxy.isConnecting()) {
-		myStatusBarItem.text = "$(radio-tower) Connecting...";
-		myStatusBarItem.tooltip = "Trying to connect to OBS-Studio";
-	}
-	else {
-		myStatusBarItem.text = "$(radio-tower) Disconnected";
-		myStatusBarItem.tooltip = "Disconnected to OBS-Studio";
-	}
+  const iconName = '$(radio-tower)';
+  if (ssm.connected()) {
+    switchSceneStatusBar.text = `${iconName} Connected`;
+    switchSceneStatusBar.tooltip = "Connected to OBS Studio";
+  } else if (ssm.connecting()) {
+    switchSceneStatusBar.text = `${iconName} Connecting...`;
+    switchSceneStatusBar.tooltip = "Trying to connect to OBS Studio";
+  } else {
+    switchSceneStatusBar.text = `${iconName} Disconnected`;
+    switchSceneStatusBar.tooltip = "Disconnected from OBS-Studio";
+  }
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-	secretsFileNames = vscode.workspace.getConfiguration(Constants.Namespace)
-		.get<string[]>('fileNames') || [];
-
-	proxy = new OBSWebSocketProxy(context);
-	
-	proxy.onConnectedEvent = () => {
-		setStatusBarText();
-	};
-
-	proxy.onDisconnectedEvent = () => {
-		setStatusBarText();
-	};
-
-	proxy.onExhaustedRetries = () => {
-		setStatusBarText();
-	};
-
-	// Check editor.document.fileName against known secrets fileNames and
-	// also against user-specified secrets fileNames and switch
-	// scenes if this document matches.
-	let documentOpenedEvent = vscode.window.onDidChangeActiveTextEditor(editor => {
-			// Sanity check
-			if (!editor || !proxy.isConnected) { return; }
-			
-			// Gather the fileName only
-			const fileName = path.parse(editor.document.fileName).base;
-
-			// Switch the scene back to the original scene
-			// that was set prior to automatically switching
-			proxy.gotoOriginalScene();
-			if (proxy.switchedScene) {
-				proxy.gotoOriginalScene();
-			}
-
-			// Check if fileName matches a secrets fileName
-			if (secretsFileNames.indexOf(fileName) > -1) {
-				proxy.gotoSecretsScene();
-			}
-	});
-
-	// Register the command to start the connection with OBS Studio
-	let startConnectionCommand = vscode.commands.registerCommand(Commands.StartCommand, () => {
-		proxy.connect();
-		setStatusBarText();
-	});
-
-	// Register the command to stop the connection with OBS Studio
-	let stopConnectionCommand = vscode.commands.registerCommand(Commands.StopCommand, () => {
-		proxy.disconnect();
-	});
-
-	// Register the toggle command to start/stop the connection with OBS Studio
-	let toggleConnectionCommand = vscode.commands.registerCommand(Commands.ToggleCommand, () => {
-		proxy.toggleConnection();
-	});	
-
-	let addFileToSecretsCommand = vscode.commands.registerCommand(Commands.AddFileToSecrets, (selectedFile: any, selectedFiles: any) => {
-		console.log(`Adding file to secrets`);
-		
-		const settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
-		let fileNames = settings.get<string[]>('fileNames') || new Array<string>();
-		selectedFiles.map((file: any) => {
-			const fileName = path.parse(file.path).base;
-			if (fileNames.findIndex(f => f === fileName) === -1) {
-				fileNames.push(fileName);
-			}
-		});
-		settings.update("fileNames", fileNames);
-	});
-
-	let removeFileFromSecretsCommand = vscode.commands.registerCommand(Commands.RemoveFileFromSecrets, (selectedFile: any, selectedFiles: any) => {
-		console.log(`Removing file from secrets`);
-
-		const settings = vscode.workspace.getConfiguration("obs.secretsSwitchScene");
-		let fileNames = settings.get<string[]>('fileNames') || new Array<string>();
-		selectedFiles.map((file: any) => {
-			const fileName = path.parse(file.path).base;
-			fileNames = fileNames.filter(f => f !== fileName);
-		});
-
-		settings.update("fileNames", fileNames);
-	});
-
-	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-	myStatusBarItem.command = Commands.ToggleCommand;
-	myStatusBarItem.show();
-	setStatusBarText();
-
-	context.subscriptions.push(documentOpenedEvent);
-	context.subscriptions.push(startConnectionCommand);
-	context.subscriptions.push(stopConnectionCommand);
-	context.subscriptions.push(toggleConnectionCommand);
-	context.subscriptions.push(myStatusBarItem);
-	context.subscriptions.push(addFileToSecretsCommand);
-	context.subscriptions.push(removeFileFromSecretsCommand);
-
-	proxy.connect();
+function start() {
+  ssm.connect(true);
 }
 
-// this method is called when your extension is deactivated
+function stop() {
+  ssm.disconnect();
+}
+
+function toggleConnection() {
+  ssm.toggleConnection();
+}
+
+function setPassword() {
+  vscode.window.showInputBox({
+    placeHolder: 'Type the OBS Websocket password',
+    password: true
+  }).then((result) => {
+    if (result !== undefined) {
+      CredentialManager.setPassword(settings.serviceUrl, result);
+      //ssm.setPassword(result);
+    } else {
+      vscode.window.showErrorMessage('You cannot use an empty password.');
+      setPassword();
+    }
+  });
+}
+
+function deletePassword() {
+  CredentialManager.deletePassword(settings.serviceUrl);
+}
+
+function autoSwitchScene(e: vscode.TextEditor | undefined) {
+  if (!e) { return; }
+  const rootPath = vscode.workspace.rootPath || "";
+  const fileName = e.document.fileName.substr(rootPath.length);
+  const idx = settings.fileNames.findIndex(f => {
+    if (!minimatch) { return false; }
+    return minimatch(fileName, f);
+  });
+  if (idx > -1) {
+    ssm.switchScene(settings.scene, 2);
+  } else {
+    if (ssm.sceneSwitched()) {
+      ssm.revertSwitchScene();
+    }
+  }
+}
+
+function setupSwitchSceneManager(passwd?: string) {
+  ssm = new SwitchSceneManager(settings.serviceUrl, passwd);
+  ssm.onConnectedEvent = setStatusBarText;
+  ssm.onDisconnectedEvent = setStatusBarText;
+  ssm.onExhaustedRetriesEvent = setStatusBarText;
+  switchSceneStatusBar.show();
+  setStatusBarText();
+}
+
+async function initializeSwitchSceneManager() {
+  if (await CredentialManager.findPassword()) {
+    CredentialManager.getPassword(settings.serviceUrl)
+      .then(value => {
+        setupSwitchSceneManager(value || undefined);
+      });
+  } else {
+    setupSwitchSceneManager();
+  }
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+  initializeSwitchSceneManager();
+  
+  switchSceneStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  switchSceneStatusBar.command = Commands.ToggleCommand;
+
+  const startCommand = vscode.commands.registerCommand(Commands.StartCommand, start);
+  const stopCommand = vscode.commands.registerCommand(Commands.StopCommand, stop);
+  const toggleCommand = vscode.commands.registerCommand(Commands.ToggleCommand, toggleConnection);
+  const setPasswordCommand = vscode.commands.registerCommand(Commands.SetPasswordCommand, setPassword);
+  const deletePasswordCommand = vscode.commands.registerCommand(Commands.DeletePasswordCommand, deletePassword);
+
+  const visibleTextEditorsEvent = vscode.window.onDidChangeActiveTextEditor(autoSwitchScene);
+
+  context.subscriptions.push(startCommand);
+  context.subscriptions.push(stopCommand);
+  context.subscriptions.push(toggleCommand);
+  context.subscriptions.push(setPasswordCommand);
+  context.subscriptions.push(deletePasswordCommand);
+  context.subscriptions.push(visibleTextEditorsEvent);
+  context.subscriptions.push(switchSceneStatusBar);
+}
+
 export function deactivate() {
-	proxy.dispose();
 }
