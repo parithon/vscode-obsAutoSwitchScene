@@ -1,3 +1,3 @@
-export default class Constants {
-  public static Namespace = "obs.secretsSwitchScene";
+export enum Constants {
+  Namespace = 'obsAutoSwitchScene'
 }
